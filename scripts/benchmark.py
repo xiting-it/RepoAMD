@@ -205,7 +205,7 @@ async def main():
     parser = argparse.ArgumentParser(description="RepoAgent AMD benchmark suite")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000/v1",
                         help="LLM server base URL")
-    parser.add_argument("--model", default="Qwen/Qwen2.5-Coder-14B-Instruct")
+    parser.add_argument("--model", default="./models/Qwen2.5-Coder-14B-Instruct")
     parser.add_argument("--suite", default="all",
                         choices=["all", "single", "batch", "context_length"],
                         help="Which benchmark suite to run")
@@ -257,10 +257,10 @@ async def main():
     print(f"\n{'='*60}")
     print("  SUMMARY")
     print(f"{'='*60}")
-    single_results = [r for r in all_results if r["suite"] == "single"]
+    single_results = [r for r in all_results if r.suite == "single"]
     if single_results:
-        avg_tps = sum(r["tokens_per_second"] for r in single_results) / len(single_results)
-        avg_ttft = sum(r["ttft"] for r in single_results) / len(single_results)
+        avg_tps = sum(r.tokens_per_second for r in single_results) / len(single_results)
+        avg_ttft = sum(r.ttft for r in single_results) / len(single_results)
         print(f"  Average throughput: {avg_tps:.1f} tok/s")
         print(f"  Average TTFT: {avg_ttft:.2f}s")
         print(f"  Theoretical ceiling: ~31 tok/s (864 GB/s / 28GB)")
