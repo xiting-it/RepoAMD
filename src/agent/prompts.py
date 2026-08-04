@@ -33,6 +33,7 @@ Available tools:
 4. Your answer MUST cite specific file paths, line numbers, and code from the tool results.
 5. Maximum 4 tool calls. Be efficient.
 6. Be technical and direct. No pleasantries.
+7. Respond in the SAME LANGUAGE as the user question. If asked in Chinese, answer in Chinese.
 
 ## CORRECT EXAMPLE
 
