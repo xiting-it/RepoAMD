@@ -2,18 +2,18 @@
 
 from .routes import create_router
 from .schemas import (
-    ChatRequest, ChatResponse,
+    ChatRequest,
     IndexRequest, IndexStatusResponse,
     HealthResponse,
-    WorkspaceTreeResponse, FileResponse,
+    WorkspaceTreeResponse, FileContentResponse,
     SessionInfo, SessionListResponse,
 )
 
 __all__ = [
     "create_router",
-    "ChatRequest", "ChatResponse",
+    "ChatRequest",
     "IndexRequest", "IndexStatusResponse",
     "HealthResponse",
-    "WorkspaceTreeResponse", "FileResponse",
+    "WorkspaceTreeResponse", "FileContentResponse",
     "SessionInfo", "SessionListResponse",
 ]
