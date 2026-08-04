@@ -407,3 +407,77 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ── Repo path panel ── */
+.repo-panel {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.repo-input-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.repo-input {
+    flex: 1;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 5px 8px;
+    border-radius: 4px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    outline: none;
+}
+
+.repo-input:focus { border-color: var(--accent); }
+.repo-input::placeholder { color: var(--text-muted); }
+
+.repo-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.btn-index, .btn-reindex {
+    flex: 1;
+    background: var(--bg-surface-hover);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: var(--font);
+    transition: background 0.15s;
+}
+
+.btn-index:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+.btn-reindex:hover { background: var(--yellow); color: var(--bg); border-color: var(--yellow); }
+.btn-index:disabled, .btn-reindex:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Stop button ── */
+.btn-stop {
+    background: var(--red);
+    border: none;
+    color: #fff;
+    width: 32px; height: 32px;
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.btn-stop:hover { opacity: 0.85; }
+
+/* ── Stopped message ── */
+.stopped-msg {
+    font-style: italic;
+    color: var(--text-muted);
+    font-size: 12px;
+    padding: 4px 0;
+}

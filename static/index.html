@@ -16,6 +16,17 @@
             <h1 class="logo">RepoAgent</h1>
             <button class="btn-new-chat" id="btnNewChat" title="New conversation">+ New</button>
         </div>
+
+        <div class="repo-panel">
+            <div class="repo-input-row">
+                <input type="text" id="repoPathInput" class="repo-input" placeholder="/path/to/repo" title="Repository path">
+            </div>
+            <div class="repo-buttons">
+                <button id="btnIndex" class="btn-index" title="Index repository">Index</button>
+                <button id="btnReindex" class="btn-reindex" title="Force re-index">Re-index</button>
+            </div>
+        </div>
+
         <div class="repo-status" id="repoStatus">
             <div class="status-row">
                 <span class="status-dot" id="healthDot"></span>
@@ -49,6 +60,7 @@
             <div class="input-wrapper">
                 <textarea id="chatInput" placeholder="Ask about this codebase..." rows="1"></textarea>
                 <button id="btnSend" class="btn-send" title="Send">&#8593;</button>
+                <button id="btnStop" class="btn-stop" title="Stop generating" style="display:none;">&#9632;</button>
             </div>
             <div class="input-hint">Agent uses tools to search and read code. Responses are generated locally.</div>
         </div>

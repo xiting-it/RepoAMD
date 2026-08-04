@@ -1,13 +1,17 @@
-// RepoAgent frontend: chat interface with SSE streaming, tool call visualization.
+// RepoAgent frontend: chat interface with SSE streaming, tool call visualization,
+// repo path switching, indexing, and stop generation.
 
 const API = '/api';
 let currentSessionId = null;
 let isStreaming = false;
+let currentAbortController = null;
+let currentRepoPath = null;
 
 // ── DOM elements ──
 const messagesEl = document.getElementById('messages');
 const inputEl = document.getElementById('chatInput');
 const btnSend = document.getElementById('btnSend');
+const btnStop = document.getElementById('btnStop');
 const btnNewChat = document.getElementById('btnNewChat');
 const healthDot = document.getElementById('healthDot');
 const healthText = document.getElementById('healthText');
@@ -16,6 +20,9 @@ const repoPathText = document.getElementById('repoPathText');
 const indexStatus = document.getElementById('indexStatus');
 const fileTree = document.getElementById('fileTree');
 const sessionsEl = document.getElementById('sessions');
+const repoPathInput = document.getElementById('repoPathInput');
+const btnIndex = document.getElementById('btnIndex');
+const btnReindex = document.getElementById('btnReindex');
 
 // ── Input handling ──
 inputEl.addEventListener('input', () => {
@@ -31,37 +38,114 @@ inputEl.addEventListener('keydown', (e) => {
 });
 
 btnSend.addEventListener('click', sendMessage);
+btnStop.addEventListener('click', stopGeneration);
 btnNewChat.addEventListener('click', () => {
     currentSessionId = null;
     messagesEl.innerHTML = renderWelcome();
     loadSessions();
 });
 
+// ── Repo path + indexing ──
+btnIndex.addEventListener('click', () => triggerIndex(false));
+btnReindex.addEventListener('click', () => triggerIndex(true));
+
+async function triggerIndex(force) {
+    let path = repoPathInput.value.trim();
+    if (!path) {
+        if (currentRepoPath) {
+            path = currentRepoPath;
+        } else {
+            flashStatus('Enter a repo path first');
+            return;
+        }
+    }
+
+    btnIndex.disabled = true;
+    btnReindex.disabled = true;
+    indexStatus.textContent = force ? 'Force re-indexing...' : 'Indexing...';
+    healthDot.className = 'status-dot warn';
+
+    try {
+        const resp = await fetch(`${API}/index`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ repo_path: path, force }),
+        });
+        const data = await resp.json();
+        if (data.status === 'started') {
+            currentRepoPath = path;
+            repoPathText.textContent = path;
+            flashStatus('Indexing started');
+            pollIndexStatus();
+        } else if (data.status === 'already_indexing') {
+            flashStatus('Already indexing...');
+            pollIndexStatus();
+        }
+    } catch (err) {
+        flashStatus('Index error: ' + err.message);
+    }
+
+    btnIndex.disabled = false;
+    btnReindex.disabled = false;
+}
+
+function pollIndexStatus() {
+    const timer = setInterval(async () => {
+        try {
+            const resp = await fetch(`${API}/index/status`);
+            const data = await resp.json();
+            if (data.is_indexing) {
+                indexStatus.textContent = `Indexing... (${data.chunk_count} chunks)`;
+            } else {
+                clearInterval(timer);
+                if (data.chunk_count > 0) {
+                    indexStatus.textContent = `${data.chunk_count} chunks indexed`;
+                    healthDot.className = 'status-dot ok';
+                    loadFileTree();
+                } else {
+                    indexStatus.textContent = 'Not indexed';
+                }
+            }
+        } catch {
+            clearInterval(timer);
+        }
+    }, 2000);
+}
+
+function flashStatus(msg) {
+    const old = indexStatus.textContent;
+    indexStatus.textContent = msg;
+    setTimeout(() => { indexStatus.textContent = old; }, 3000);
+}
+
+// ── Stop generation ──
+function stopGeneration() {
+    if (currentAbortController) {
+        currentAbortController.abort();
+        currentAbortController = null;
+    }
+}
+
 function sendMessage() {
     const text = inputEl.value.trim();
     if (!text || isStreaming) return;
 
-    // Remove welcome if present
     const welcome = messagesEl.querySelector('.welcome');
     if (welcome) welcome.remove();
 
-    // Render user message
     appendUserMessage(text);
-
-    // Clear input
     inputEl.value = '';
     inputEl.style.height = 'auto';
-
-    // Stream response
     streamChat(text);
 }
 
 // ── SSE chat streaming ──
 async function streamChat(message) {
     isStreaming = true;
-    btnSend.disabled = true;
+    btnSend.style.display = 'none';
+    btnStop.style.display = 'flex';
+    inputEl.disabled = true;
 
-    // Create assistant message container with thinking area
     const msgDiv = document.createElement('div');
     msgDiv.className = 'msg msg-assistant';
     const roleEl = document.createElement('div');
@@ -73,23 +157,26 @@ async function streamChat(message) {
     msgDiv.appendChild(contentEl);
     messagesEl.appendChild(msgDiv);
 
-    // Typing indicator
     const typing = document.createElement('div');
     typing.className = 'typing-indicator';
     typing.innerHTML = '<span></span><span></span><span></span>';
     contentEl.appendChild(typing);
 
-    scrollToBottom();
+    currentAbortController = new AbortController();
+    let hasContent = false;
 
     try {
-        const body = JSON.stringify({ message, session_id: currentSessionId });
         const resp = await fetch(`${API}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body,
+            body: JSON.stringify({
+                message,
+                session_id: currentSessionId,
+                repo_path: currentRepoPath,
+            }),
+            signal: currentAbortController.signal,
         });
 
-        // Capture session ID from headers
         const sessionId = resp.headers.get('X-Session-Id');
         if (sessionId) currentSessionId = sessionId;
 
@@ -97,7 +184,6 @@ async function streamChat(message) {
         const decoder = new TextDecoder();
         let buffer = '';
         let finalText = '';
-        let hasContent = false;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -105,7 +191,7 @@ async function streamChat(message) {
             buffer += decoder.decode(value, { stream: true });
 
             const lines = buffer.split('\n');
-            buffer = lines.pop(); // keep incomplete line
+            buffer = lines.pop();
 
             for (const line of lines) {
                 if (!line.startsWith('data: ')) continue;
@@ -115,7 +201,6 @@ async function streamChat(message) {
                 let event;
                 try { event = JSON.parse(data); } catch { continue; }
 
-                // Remove typing indicator on first real content
                 if (typing.parentNode && (event.type === 'text' || event.type === 'tool_call'
                     || event.type === 'thinking' || event.type === 'tool_result')) {
                     typing.remove();
@@ -129,23 +214,32 @@ async function streamChat(message) {
             }
         }
 
-        // If nothing was shown, remove the empty message
         if (!hasContent && !finalText) {
             contentEl.innerHTML = '<em>No response received.</em>';
         }
 
-        // Highlight code blocks
         contentEl.querySelectorAll('pre code').forEach(block => {
             if (window.hljs) hljs.highlightElement(block);
         });
 
     } catch (err) {
         typing.remove();
-        contentEl.innerHTML = `<span style="color: var(--red);">Error: ${err.message}</span>`;
+        if (err.name === 'AbortError') {
+            const stopMsg = document.createElement('div');
+            stopMsg.className = 'stopped-msg';
+            stopMsg.textContent = '— stopped —';
+            contentEl.appendChild(stopMsg);
+        } else {
+            contentEl.innerHTML = `<span style="color: var(--red);">Error: ${err.message}</span>`;
+        }
     }
 
     isStreaming = false;
-    btnSend.disabled = false;
+    btnSend.style.display = 'flex';
+    btnStop.style.display = 'none';
+    inputEl.disabled = false;
+    inputEl.focus();
+    currentAbortController = null;
     scrollToBottom();
     loadSessions();
 }
@@ -189,14 +283,12 @@ function handleEvent(event, container) {
             break;
         }
         case 'tool_result': {
-            // Find the last tool-call-block and append result
             const lastTool = container.querySelector('.tool-call-block:last-child');
             if (lastTool) {
                 const result = document.createElement('div');
                 result.className = 'tool-result';
                 result.textContent = event.content;
                 result.style.display = 'none';
-                // Click to toggle
                 lastTool.addEventListener('click', () => {
                     result.style.display = result.style.display === 'none' ? 'block' : 'none';
                 });
@@ -211,12 +303,8 @@ function handleEvent(event, container) {
             container.appendChild(textEl);
             break;
         }
-        case 'done': {
-            if (event.content) {
-                // Final text already handled by 'text' event
-            }
+        case 'done':
             break;
-        }
         case 'error': {
             const errEl = document.createElement('div');
             errEl.style.color = 'var(--red)';
@@ -249,24 +337,14 @@ function renderWelcome() {
 }
 
 function renderMarkdown(text) {
-    // Simple markdown: code blocks, inline code, bold, paragraphs
     let html = text;
-
-    // Code blocks (```...```)
     html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (m, lang, code) => {
         const langClass = lang ? ` class="language-${lang}"` : '';
         return `<pre><code${langClass}>${escapeHtml(code.trim())}</code></pre>`;
     });
-
-    // Inline code
     html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // Bold
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-
-    // Paragraphs
     html = html.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
-
     return html;
 }
 
@@ -300,14 +378,15 @@ async function checkHealth() {
             modelName.textContent = data.llm_model || '';
         }
 
-        indexStatus.textContent = data.chunk_count > 0
-            ? `${data.chunk_count} chunks indexed`
-            : 'Not indexed';
-
-        if (data.indexing) {
+        if (!data.indexing && data.chunk_count > 0) {
+            indexStatus.textContent = `${data.chunk_count} chunks indexed`;
+        } else if (data.indexing) {
             healthDot.className = 'status-dot warn';
             healthText.textContent = 'Indexing...';
         }
+
+        // Auto-poll if indexing
+        if (data.indexing) pollIndexStatus();
     } catch {
         healthDot.className = 'status-dot error';
         healthText.textContent = 'Server Offline';
@@ -320,6 +399,16 @@ async function loadFileTree(path = '.') {
         const resp = await fetch(`${API}/workspace/tree?path=${encodeURIComponent(path)}`);
         const data = await resp.json();
         fileTree.innerHTML = '';
+
+        // Show parent dir link if not at root
+        if (path !== '.') {
+            const parent = path.includes('/') ? path.rsplit('/', 1)[0] : '.';
+            const upEl = document.createElement('div');
+            upEl.className = 'file-entry';
+            upEl.innerHTML = '\u2191 ..';
+            upEl.addEventListener('click', () => loadFileTree(parent === path ? '.' : parent));
+            fileTree.appendChild(upEl);
+        }
 
         data.entries.forEach(entry => {
             const el = document.createElement('div');
@@ -361,9 +450,7 @@ async function loadSessions() {
         if (data.sessions.length === 0) {
             sessionsEl.innerHTML = '<div class="file-entry" style="opacity:0.5">No sessions</div>';
         }
-    } catch {
-        // Silent fail
-    }
+    } catch {}
 }
 
 async function loadSession(sessionId) {
@@ -397,9 +484,7 @@ async function loadSession(sessionId) {
 
         loadSessions();
         scrollToBottom();
-    } catch {
-        // Silent fail
-    }
+    } catch {}
 }
 
 // ── Init ──
