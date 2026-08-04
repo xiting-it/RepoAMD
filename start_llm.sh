@@ -6,7 +6,7 @@
 #   QUANT           "none" (default) | "fp8"   — set fp8 only if M1 verifies it works
 #   MODEL_PATH      path to model dir (default: Qwen/Qwen2.5-Coder-14B-Instruct)
 #   PORT            vLLM port (default: 8000)
-#   TOOL_PARSER     "qwen2" (default) | "hermes" — fallback for older vLLM
+#   TOOL_PARSER     "hermes" (default) | "qwen3_coder" etc — see vLLM supported list
 set -euo pipefail
 
 # ── ROCm stability env vars (gfx1100 known issues) ──
@@ -17,7 +17,7 @@ export AMD_SERIALIZE_COPY="${AMD_SERIALIZE_COPY:-3}"
 
 MODEL_PATH="${MODEL_PATH:-Qwen/Qwen2.5-Coder-14B-Instruct}"
 PORT="${PORT:-8000}"
-TOOL_PARSER="${TOOL_PARSER:-qwen2}"
+TOOL_PARSER="${TOOL_PARSER:-hermes}"
 
 # ── enforce_eager toggle ──
 ENFORCE_EAGER="${ENFORCE_EAGER:-true}"
@@ -56,7 +56,7 @@ exec vllm serve "$MODEL_PATH" \
     --port "$PORT"
 
 # Usage:
-#   bash start_llm.sh                          # defaults: eager + fp16 + qwen2 parser
+#   bash start_llm.sh                          # defaults: eager + fp16 + hermes parser
 #   ENFORCE_EAGER=false bash start_llm.sh      # try graph mode (after M0 verification)
 #   QUANT=fp8 bash start_llm.sh                # try fp8 (after M1 verification)
-#   TOOL_PARSER=hermes bash start_llm.sh       # fallback for older vLLM without qwen2 parser
+#   TOOL_PARSER=qwen3_coder bash start_llm.sh   # alternative parser for Qwen

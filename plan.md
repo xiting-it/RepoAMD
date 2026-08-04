@@ -115,7 +115,7 @@ vllm serve Qwen/Qwen2.5-Coder-14B-Instruct \
   --max-model-len 16384 \
   --gpu-memory-utilization 0.88 \
   --enable-auto-tool-choice \
-  --tool-call-parser qwen2 \
+  --tool-call-parser hermes \
   --enforce-eager \
   --port 8000
 ```
@@ -196,7 +196,7 @@ vllm serve Qwen/Qwen2.5-Coder-14B-Instruct \
 | 1.8 | 发送带 tools 参数请求 | 10min | |
 | 1.9 | 验证结构化 tool_calls 返回 | 10min | +30min |
 
-> 加了 `--tool-call-parser qwen2` 但 tool_calls 仍空?
+> 加了 `--tool-call-parser hermes` 但 tool_calls 仍空?
 > 检查 Qwen2.5 chat template 匹配。试 hermes parser (旧版 vLLM 不支持 qwen2)。
 > 最后退路: 文本格式解析 (正则提取)。
 
@@ -381,7 +381,7 @@ vllm serve Qwen/Qwen2.5-Coder-14B-Instruct \
   --max-model-len $MAX_LEN \
   --gpu-memory-utilization 0.88 \
   --enable-auto-tool-choice \
-  --tool-call-parser qwen2 \
+  --tool-call-parser hermes \
   $EAGER_FLAG \
   $QUANT_FLAG \
   --port 8000

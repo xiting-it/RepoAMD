@@ -168,7 +168,7 @@ BUDGET_16K = {
 **工具调用**: Qwen2.5 在 vLLM 中需要显式启用:
 
 ```bash
---enable-auto-tool-choice --tool-call-parser qwen2
+--enable-auto-tool-choice --tool-call-parser hermes
 ```
 
 > 不加这两个 flag，vLLM 接受 tools 参数但模型输出不含结构化 tool_calls。
@@ -331,19 +331,19 @@ export AMD_SERIALIZE_KERNEL=3
 export AMD_SERIALIZE_COPY=3
 
 # --enforce-eager: gfx1100 默认加; M0 验证 graph 后可通过 ENFORCE_EAGER=false 关闭
-# --tool-call-parser qwen2: Qwen2.5 function calling (旧版 vLLM 退回 hermes)
+# --tool-call-parser hermes: Qwen2.5 function calling (旧版 vLLM 退回 hermes)
 vllm serve Qwen/Qwen2.5-Coder-14B-Instruct \
   --dtype float16 \
   --max-model-len 16384 \
   --gpu-memory-utilization 0.88 \
   --enable-auto-tool-choice \
-  --tool-call-parser qwen2 \
+  --tool-call-parser hermes \
   --enforce-eager \
   --port 8000
 ```
 
 > Flags 说明:
-> - `--enable-auto-tool-choice --tool-call-parser qwen2`: Qwen2.5 function calling 必需
+> - `--enable-auto-tool-choice --tool-call-parser hermes`: Qwen2.5 function calling 必需
 > - `--enforce-eager`: gfx1100 HIP graph 兼容性差，默认跳过。M0 先试不加，崩溃则加
 > - `--gpu-memory-utilization 0.88`: 权重 28GB 需要，不能用更低
 
