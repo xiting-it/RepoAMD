@@ -141,8 +141,28 @@ class AgentEngine:
                 data={"iteration": iteration},
             )
 
-            # Add assistant message to conversation
-            assistant_msg = ChatMessage(role="assistant", content=full_text)
+            # Add assistant message to conversation.
+            # MUST include structured tool_calls so vLLM accepts the subsequent
+            # role="tool" messages. We construct them from the text-parsed calls.
+            structured_tool_calls = []
+            for tc in result.calls:
+                if tc.name not in tool_names:
+                    continue
+                call_id = _make_tool_call_id(tc.name, iteration)
+                structured_tool_calls.append({
+                    "id": call_id,
+                    "type": "function",
+                    "function": {
+                        "name": tc.name,
+                        "arguments": json.dumps(tc.arguments, ensure_ascii=False),
+                    },
+                })
+
+            assistant_msg = ChatMessage(
+                role="assistant",
+                content=full_text,
+                tool_calls=structured_tool_calls,
+            )
             messages.append(assistant_msg)
 
             # ── Execute each tool call ──
@@ -191,6 +211,7 @@ class AgentEngine:
                     tool_call_id=_make_tool_call_id(tc.name, iteration),
                     name=tc.name,
                 ))
+                # Reset accumulated tool call IDs for this iteration
 
         # Max iterations reached
         logger.warning("Agent reached max iterations (%d)", self.config.max_iterations)
