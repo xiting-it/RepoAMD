@@ -97,7 +97,7 @@ def check_pytorch() -> tuple[bool, str, str]:
     if not has_rocm:
         record(CheckResult("pytorch", False,
               f"PyTorch {version} is NOT the ROCm build",
-              "Install: pip install torch --index-url https://download.pytorch.org/whl/rocm6.2"))
+              "Install: pip install torch --index-url https://download.pytorch.org/whl/rocm7.2.1"))
         return False, version, ""
 
     if not torch.cuda.is_available():
@@ -195,7 +195,7 @@ def check_vllm(model: str) -> bool:
     except ImportError:
         record(CheckResult("vllm_import", False,
               "vLLM not installed",
-              "Install: pip install vllm --extra-index-url https://download.pytorch.org/whl/rocm6.2"))
+              "Install: pip install vllm --extra-index-url https://download.pytorch.org/whl/rocm7.2.1"))
         return False
     except Exception as e:
         record(CheckResult("vllm_import", False, f"vLLM import error: {e}"))
@@ -230,7 +230,7 @@ def main():
     print("""
 +------------------------------------------------------------------+
 |              RepoAgent M0 Environment Verification               |
-|              Target: AMD W7900 (gfx1100, ROCm 6.2)              |
+|              Target: AMD W7900 (gfx1100, ROCm 7.2.1)              |
 +------------------------------------------------------------------+
 """)
 
