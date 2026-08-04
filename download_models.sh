@@ -3,8 +3,9 @@
 #
 # Usage:
 #   bash download_models.sh                  # download all
-#   bash download_models.sh --llm-only       # LLM only (for quick testing)
+#   bash download_models.sh --llm-only       # LLM only
 #   bash download_models.sh --rag-only       # embedding + reranker only
+#   MIRROR=modelscope bash download_models.sh   # use ModelScope (国内推荐)
 #
 # Models:
 #   Qwen2.5-Coder-14B-Instruct   ~28 GB (FP16 weights)
@@ -13,10 +14,11 @@
 set -euo pipefail
 
 MODEL_DIR="${MODEL_DIR:-./models}"
+MIRROR="${MIRROR:-hf-mirror}"   # hf-mirror (default) | modelscope | direct
 mkdir -p "$MODEL_DIR"
 
-# Detect available HF CLI
-download() {
+# ── HF mirror ──
+download_hf() {
     local repo=$1
     local dest=$2
     if command -v hf &>/dev/null; then
@@ -27,6 +29,40 @@ download() {
         echo "Neither hf nor huggingface-cli found. Install: pip install huggingface_hub"
         exit 1
     fi
+}
+
+# ── ModelScope ──
+download_ms() {
+    local repo=$1
+    local dest=$2
+    python3 -c "
+from modelscope import snapshot_download
+snapshot_download('$repo', local_dir='$dest')
+" 2>/dev/null || {
+        echo "modelscope not installed or download failed. Install: pip install modelscope"
+        echo "Falling back to HF mirror..."
+        download_hf "$repo" "$dest"
+    }
+}
+
+download() {
+    local repo=$1
+    local dest=$2
+    case "$MIRROR" in
+        modelscope)
+            echo "  [source: ModelScope]"
+            download_ms "$repo" "$dest"
+            ;;
+        direct)
+            echo "  [source: HuggingFace direct]"
+            download_hf "$repo" "$dest"
+            ;;
+        hf-mirror|*)
+            echo "  [source: HF mirror (hf-mirror.com)]"
+            export HF_ENDPOINT=https://hf-mirror.com
+            download_hf "$repo" "$dest"
+            ;;
+    esac
 }
 
 download_llm() {
@@ -54,4 +90,4 @@ esac
 
 echo ""
 echo "=== Done. Models in $MODEL_DIR/ ==="
-echo "Update config.yaml model paths if you used a custom MODEL_DIR."
+echo "If download was slow, try: MIRROR=modelscope bash download_models.sh"
