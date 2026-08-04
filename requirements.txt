@@ -1,0 +1,25 @@
+# Core application
+fastapi>=0.111
+uvicorn[standard]>=0.30
+pydantic>=2.7
+pydantic-settings>=2.3
+pyyaml>=6.0
+httpx>=0.27
+
+# Indexing / RAG
+tree-sitter>=0.22
+tree-sitter-python>=0.22
+chromadb>=0.5.0
+
+# Embedding + Reranker
+sentence-transformers>=3.0
+FlagEmbedding>=1.2
+
+# Utilities
+rich>=13.7
+
+# GPU / Inference (install separately, see README)
+# PyTorch ROCm:
+#   pip install torch --index-url https://download.pytorch.org/whl/rocm6.2
+# vLLM ROCm (pin exact version after M0 verification):
+#   pip install vllm==<verified-version> --extra-index-url https://download.pytorch.org/whl/rocm6.2
