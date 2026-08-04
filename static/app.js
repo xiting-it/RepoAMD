@@ -201,8 +201,9 @@ async function streamChat(message) {
                 let event;
                 try { event = JSON.parse(data); } catch { continue; }
 
-                if (typing.parentNode && (event.type === 'text' || event.type === 'tool_call'
-                    || event.type === 'thinking' || event.type === 'tool_result')) {
+                if (typing.parentNode && (event.type === 'text' || event.type === 'text_delta'
+                    || event.type === 'tool_call' || event.type === 'thinking'
+                    || event.type === 'tool_result' || event.type === 'progress')) {
                     typing.remove();
                     hasContent = true;
                 }
@@ -246,7 +247,36 @@ async function streamChat(message) {
 
 function handleEvent(event, container) {
     switch (event.type) {
+        case 'text_delta': {
+            // Accumulate streaming tokens into the current text element
+            let textEl = container.querySelector('.streaming-text');
+            if (!textEl) {
+                textEl = document.createElement('div');
+                textEl.className = 'streaming-text';
+                container.appendChild(textEl);
+            }
+            textEl.textContent += event.content;
+            scrollToBottom();
+            break;
+        }
+        case 'progress': {
+            // Show a brief progress indicator
+            let progEl = container.querySelector('.progress-msg');
+            if (!progEl) {
+                progEl = document.createElement('div');
+                progEl.className = 'progress-msg';
+                container.appendChild(progEl);
+            }
+            progEl.textContent = '\u23F3 ' + event.content;
+            scrollToBottom();
+            break;
+        }
         case 'thinking': {
+            // Remove streaming text and progress (they were replaced by thinking)
+            const streamEl = container.querySelector('.streaming-text');
+            if (streamEl) streamEl.remove();
+            const progEl = container.querySelector('.progress-msg');
+            if (progEl) progEl.remove();
             const block = document.createElement('div');
             block.className = 'thinking-block';
             const header = document.createElement('div');
@@ -298,9 +328,21 @@ function handleEvent(event, container) {
             break;
         }
         case 'text': {
-            const textEl = document.createElement('div');
-            textEl.innerHTML = renderMarkdown(event.content);
-            container.appendChild(textEl);
+            // Finalize: convert streaming text to rendered markdown
+            let streamEl = container.querySelector('.streaming-text');
+            const progEl = container.querySelector('.progress-msg');
+            if (progEl) progEl.remove();
+            if (streamEl) {
+                // Streaming text was the answer
+                if (event.content && event.content.trim()) {
+                    streamEl.innerHTML = renderMarkdown(event.content);
+                }
+            } else {
+                // No streaming happened, add normally
+                const textEl = document.createElement('div');
+                textEl.innerHTML = renderMarkdown(event.content);
+                container.appendChild(textEl);
+            }
             break;
         }
         case 'done':

@@ -481,3 +481,23 @@ body {
     font-size: 12px;
     padding: 4px 0;
 }
+
+/* ── Streaming text ── */
+.streaming-text {
+    line-height: 1.7;
+    min-height: 1em;
+}
+
+/* ── Progress message ── */
+.progress-msg {
+    font-size: 12px;
+    color: var(--accent);
+    padding: 4px 0;
+    font-style: italic;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}

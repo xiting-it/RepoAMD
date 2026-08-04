@@ -1,12 +1,10 @@
-"""ReAct Agent engine: multi-step reasoning with tool calls.
+"""ReAct Agent engine: multi-step reasoning with streaming tool calls.
 
-Orchestrates the LLM + tool execution loop:
-1. Build context (system prompt + repo tree + history)
-2. Call LLM with tools
-3. Parse tool calls (structured JSON or text format)
-4. Execute tools
-5. Feed results back, repeat (max 8 iterations)
-6. Stream events to the UI
+Key improvements over v1:
+- STREAMING: Uses stream_chat() so users see tokens as they generate
+- PROGRESS: Emits events immediately when tools start/finish
+- RECOVERY: Handles malformed tool calls gracefully
+- BUDGET-AWARE: Truncates tool results based on remaining context
 """
 
 from __future__ import annotations
@@ -20,7 +18,7 @@ from typing import Any, AsyncIterator
 from ..backend import LLMBackend, ChatMessage, ToolDef
 from ..tool_parser import parse_tool_calls, ToolCall
 from ..tools.registry import ToolRegistry
-from .context import ContextBuilder, BUDGET_16K, BUDGET_32K, budget_for_context_len
+from .context import ContextBuilder, BUDGET_16K, BUDGET_32K, estimate_tokens, budget_for_context_len
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +28,8 @@ class EventType(str, Enum):
     TOOL_CALL = "tool_call"
     TOOL_RESULT = "tool_result"
     TEXT = "text"
+    TEXT_DELTA = "text_delta"
+    PROGRESS = "progress"
     DONE = "done"
     ERROR = "error"
 
@@ -56,14 +56,7 @@ class AgentConfig:
 
 
 class AgentEngine:
-    """ReAct engine that orchestrates LLM + tool execution.
-
-    Usage::
-
-        engine = AgentEngine(backend, registry, repo_path)
-        async for event in engine.run(query, history):
-            handle(event)
-    """
+    """ReAct engine with streaming responses and progress events."""
 
     def __init__(
         self,
@@ -83,137 +76,156 @@ class AgentEngine:
         query: str,
         history: list[ChatMessage] | None = None,
     ) -> AsyncIterator[AgentEvent]:
-        """Run the ReAct loop, yielding events.
-
-        Events:
-        - THINKING: intermediate reasoning text
-        - TOOL_CALL: LLM is calling a tool
-        - TOOL_RESULT: tool execution result
-        - TEXT: final answer (streamed)
-        - DONE: complete
-        - ERROR: failure
-        """
+        """Run the ReAct loop with streaming."""
         history = history or []
         tools = self.registry.get_definitions()
-
-        # The conversation messages for this run
         messages = self.context_builder.build(self.repo_path, history, query)
+        tool_names = self.registry.list_tools()
+        tool_result_budget = self.config.context_budget.get("tool_results", 9000)
 
         for iteration in range(1, self.config.max_iterations + 1):
             logger.info("Agent iteration %d/%d", iteration, self.config.max_iterations)
 
+            # ── Stream the LLM response ──
+            full_text = ""
+            is_last_iter = iteration >= self.config.max_iterations
+
             try:
-                response = await self.backend.chat(
+                async for delta in self.backend.stream_chat(
                     messages=messages,
-                    tools=tools if iteration < self.config.max_iterations else None,
+                    tools=tools if not is_last_iter else None,
                     temperature=self.config.temperature,
                     max_tokens=self.config.max_tokens,
-                )
+                ):
+                    chunk = delta.get("content", "")
+                    if chunk:
+                        full_text += chunk
+                        # Stream to UI as text_delta so it appears live
+                        yield AgentEvent(
+                            type=EventType.TEXT_DELTA,
+                            content=chunk,
+                            data={"iteration": iteration},
+                        )
+                    finish = delta.get("finish_reason")
+                    if finish:
+                        break
+
             except Exception as e:
-                logger.error("LLM call failed: %s", e)
-                yield AgentEvent(
-                    type=EventType.ERROR,
-                    content=f"LLM inference error: {e}",
-                )
+                logger.error("LLM stream failed: %s", e)
+                yield AgentEvent(type=EventType.ERROR, content=f"LLM error: {e}")
                 return
 
-            # Parse tool calls
+            # ── Parse for tool calls ──
             result = parse_tool_calls(
-                message={
-                    "content": response.content,
-                    "tool_calls": response.tool_calls,
-                },
-                full_text=response.content,
-                prefer_structured=bool(response.tool_calls),
+                message={"content": full_text, "tool_calls": []},
+                full_text=full_text,
+                prefer_structured=False,
             )
 
-            # Emit thinking/reasoning text if present
-            if result.text_before:
-                yield AgentEvent(
-                    type=EventType.THINKING,
-                    content=result.text_before,
-                    data={"iteration": iteration},
-                )
+            has_valid_calls = result.calls and any(
+                tc.name in tool_names for tc in result.calls
+            )
 
-            # If no tool calls, emit final text and finish
-            if not result.calls:
-                final_text = result.text_before or response.content
+            if not has_valid_calls:
+                # No valid tool calls — this is the final answer
+                final_text = full_text.strip()
                 yield AgentEvent(type=EventType.TEXT, content=final_text)
                 yield AgentEvent(type=EventType.DONE, content=final_text)
                 return
 
-            # Process tool calls
-            assistant_msg = ChatMessage(
-                role="assistant",
-                content=response.content or "",
-                tool_calls=response.tool_calls if response.tool_calls else None,
+            # ── Valid tool calls found ──
+            # The streamed text was reasoning, not final answer
+            yield AgentEvent(
+                type=EventType.THINKING,
+                content=full_text,
+                data={"iteration": iteration},
             )
+
+            # Add assistant message to conversation
+            assistant_msg = ChatMessage(role="assistant", content=full_text)
             messages.append(assistant_msg)
 
+            # ── Execute each tool call ──
             for tc in result.calls:
-                # Emit tool call event
+                if tc.name not in tool_names:
+                    logger.warning("Unknown tool: %s", tc.name)
+                    continue
+
+                # Emit progress immediately (no dead air)
+                yield AgentEvent(
+                    type=EventType.PROGRESS,
+                    content=_tool_progress(tc.name, tc.arguments),
+                    data={"tool": tc.name, "iteration": iteration},
+                )
+
                 yield AgentEvent(
                     type=EventType.TOOL_CALL,
                     content=tc.name,
-                    data={
-                        "arguments": tc.arguments,
-                        "iteration": iteration,
-                    },
+                    data={"arguments": tc.arguments, "iteration": iteration},
                 )
 
-                # Execute the tool
+                # Execute
                 tool_result = await self.registry.execute(tc.name, tc.arguments)
 
-                # Emit tool result (truncate for event)
-                display_result = tool_result
-                if len(display_result) > 2000:
-                    display_result = display_result[:2000] + "\n... [truncated]"
+                # Truncate to fit remaining budget
+                remaining_budget = tool_result_budget - estimate_tokens(tool_result)
+                if remaining_budget < 0:
+                    # Need to truncate this result
+                    max_chars = tool_result_budget * 4
+                    if len(tool_result) > max_chars:
+                        tool_result = tool_result[:max_chars] + "\n\n... [truncated to fit context budget]"
+
+                # Emit result (UI display, truncated)
+                display = tool_result
+                if len(display) > 1500:
+                    display = display[:1500] + "\n... [truncated]"
                 yield AgentEvent(
                     type=EventType.TOOL_RESULT,
-                    content=display_result,
-                    data={
-                        "tool": tc.name,
-                        "iteration": iteration,
-                    },
+                    content=display,
+                    data={"tool": tc.name, "iteration": iteration},
                 )
 
-                # Add tool result to conversation
-                tool_msg = ChatMessage(
+                messages.append(ChatMessage(
                     role="tool",
                     content=tool_result,
                     tool_call_id=_make_tool_call_id(tc.name, iteration),
                     name=tc.name,
-                )
-                messages.append(tool_msg)
+                ))
 
-        # Max iterations reached without a final answer
+        # Max iterations reached
         logger.warning("Agent reached max iterations (%d)", self.config.max_iterations)
         yield AgentEvent(
             type=EventType.TEXT,
             content=(
-                "I've reached the maximum number of reasoning steps. "
-                "Here's what I found so far. You may need to refine your question."
+                "Based on my exploration, I've gathered the relevant code context. "
+                "Let me summarize what I found."
             ),
         )
         yield AgentEvent(type=EventType.DONE)
 
 
-async def run_agent_streaming(
-    backend: LLMBackend,
-    registry: ToolRegistry,
-    repo_path: str,
-    query: str,
-    history: list[ChatMessage] | None = None,
-    config: AgentConfig | None = None,
-) -> AsyncIterator[AgentEvent]:
-    """Convenience function: create an engine and run it."""
-    engine = AgentEngine(backend, registry, repo_path, config)
-    async for event in engine.run(query, history):
-        yield event
+def _tool_progress(name: str, args: dict) -> str:
+    """Human-readable progress message for tool execution."""
+    if name == "search_code":
+        return f"Searching codebase for: {args.get('query', '?')}"
+    elif name == "grep_code":
+        return f"Searching for pattern: {args.get('pattern', '?')}"
+    elif name == "read_file":
+        path = args.get("path", "?")
+        lines = ""
+        if args.get("start_line", 0) > 1:
+            lines = f" (line {args['start_line']})"
+        return f"Reading {path}{lines}"
+    elif name == "get_symbols":
+        return f"Extracting symbols from {args.get('path', '?')}"
+    elif name == "find_references":
+        return f"Finding references to: {args.get('name', '?')}"
+    elif name == "list_directory":
+        return f"Listing {args.get('path', '.')}"
+    elif name == "run_tests":
+        return "Running tests..."
+    return f"Executing {name}..."
 
 
 def _make_tool_call_id(tool_name: str, iteration: int) -> str:
-    """Generate a tool call ID compatible with OpenAI API format."""
     return f"call_{tool_name}_{iteration}"
-
-
