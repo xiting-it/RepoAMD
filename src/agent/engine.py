@@ -1,10 +1,14 @@
-"""ReAct Agent engine: multi-step reasoning with streaming tool calls.
+"""ReAct Agent engine v3: text-based tool calling.
 
-Key improvements over v1:
-- STREAMING: Uses stream_chat() so users see tokens as they generate
-- PROGRESS: Emits events immediately when tools start/finish
-- RECOVERY: Handles malformed tool calls gracefully
-- BUDGET-AWARE: Truncates tool results based on remaining context
+vLLM's hermes parser doesn't work reliably with Qwen2.5 on gfx1100.
+Instead of fighting vLLM's OpenAI tool_call format validation, we:
+1. Describe tools in the system prompt (model outputs bare JSON tool calls)
+2. Parse tool calls from text output ourselves
+3. Feed tool results back as role="user" messages (no role="tool")
+4. Never send tools= parameter to vLLM (avoids all hermes parser issues)
+
+This is simpler, more portable (works with llama.cpp too), and more
+robust for models that don't have perfect function calling support.
 """
 
 from __future__ import annotations
@@ -15,8 +19,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, AsyncIterator
 
-from ..backend import LLMBackend, ChatMessage, ToolDef
-from ..tool_parser import parse_tool_calls, ToolCall
+from ..backend import LLMBackend, ChatMessage
+from ..tool_parser import parse_tool_calls
 from ..tools.registry import ToolRegistry
 from .context import ContextBuilder, BUDGET_16K, BUDGET_32K, estimate_tokens, budget_for_context_len
 
@@ -56,7 +60,7 @@ class AgentConfig:
 
 
 class AgentEngine:
-    """ReAct engine with streaming responses and progress events."""
+    """ReAct engine with streaming and text-based tool calling."""
 
     def __init__(
         self,
@@ -78,36 +82,31 @@ class AgentEngine:
     ) -> AsyncIterator[AgentEvent]:
         """Run the ReAct loop with streaming."""
         history = history or []
-        tools = self.registry.get_definitions()
-        messages = self.context_builder.build(self.repo_path, history, query)
-        tool_names = self.registry.list_tools()
+        tool_names = set(self.registry.list_tools())
         tool_result_budget = self.config.context_budget.get("tool_results", 9000)
+        messages = self.context_builder.build(self.repo_path, history, query)
 
         for iteration in range(1, self.config.max_iterations + 1):
             logger.info("Agent iteration %d/%d", iteration, self.config.max_iterations)
 
-            # ── Stream the LLM response ──
+            # ── Stream the LLM response (NO tools= parameter) ──
             full_text = ""
-            is_last_iter = iteration >= self.config.max_iterations
-
             try:
                 async for delta in self.backend.stream_chat(
                     messages=messages,
-                    tools=tools if not is_last_iter else None,
+                    tools=None,  # text-based, not OpenAI tools API
                     temperature=self.config.temperature,
                     max_tokens=self.config.max_tokens,
                 ):
                     chunk = delta.get("content", "")
                     if chunk:
                         full_text += chunk
-                        # Stream to UI as text_delta so it appears live
                         yield AgentEvent(
                             type=EventType.TEXT_DELTA,
                             content=chunk,
                             data={"iteration": iteration},
                         )
-                    finish = delta.get("finish_reason")
-                    if finish:
+                    if delta.get("finish_reason"):
                         break
 
             except Exception as e:
@@ -115,112 +114,74 @@ class AgentEngine:
                 yield AgentEvent(type=EventType.ERROR, content=f"LLM error: {e}")
                 return
 
-            # ── Parse for tool calls ──
+            # ── Parse for tool calls from text ──
             result = parse_tool_calls(
                 message={"content": full_text, "tool_calls": []},
                 full_text=full_text,
                 prefer_structured=False,
             )
 
-            has_valid_calls = result.calls and any(
-                tc.name in tool_names for tc in result.calls
-            )
+            valid_calls = [tc for tc in result.calls if tc.name in tool_names]
 
-            if not has_valid_calls:
-                # No valid tool calls — this is the final answer
+            if not valid_calls:
+                # No tool calls — this is the final answer
                 final_text = full_text.strip()
                 yield AgentEvent(type=EventType.TEXT, content=final_text)
                 yield AgentEvent(type=EventType.DONE, content=final_text)
                 return
 
-            # ── Valid tool calls found ──
-            # The streamed text was reasoning, not final answer
+            # ── Valid tool calls found in text ──
+            # The streamed text was reasoning, emit as thinking
             yield AgentEvent(
                 type=EventType.THINKING,
-                content=full_text,
+                content=result.text_before or full_text,
                 data={"iteration": iteration},
             )
 
-            # Add assistant message to conversation.
-            # MUST include structured tool_calls so vLLM accepts the subsequent
-            # role="tool" messages. We construct them from the text-parsed calls.
-            structured_tool_calls = []
-            for tc in result.calls:
-                if tc.name not in tool_names:
-                    continue
-                call_id = _make_tool_call_id(tc.name, iteration)
-                structured_tool_calls.append({
-                    "id": call_id,
-                    "type": "function",
-                    "function": {
-                        "name": tc.name,
-                        "arguments": json.dumps(tc.arguments, ensure_ascii=False),
-                    },
-                })
+            # Add assistant message (plain text, no structured tool_calls)
+            messages.append(ChatMessage(role="assistant", content=full_text))
 
-            assistant_msg = ChatMessage(
-                role="assistant",
-                content=full_text,
-                tool_calls=structured_tool_calls,
-            )
-            messages.append(assistant_msg)
-
-            # ── Execute each tool call ──
-            for tc in result.calls:
-                if tc.name not in tool_names:
-                    logger.warning("Unknown tool: %s", tc.name)
-                    continue
-
-                # Emit progress immediately (no dead air)
+            # ── Execute tools, collect results ──
+            tool_results: list[str] = []
+            for tc in valid_calls:
                 yield AgentEvent(
                     type=EventType.PROGRESS,
                     content=_tool_progress(tc.name, tc.arguments),
                     data={"tool": tc.name, "iteration": iteration},
                 )
-
                 yield AgentEvent(
                     type=EventType.TOOL_CALL,
                     content=tc.name,
                     data={"arguments": tc.arguments, "iteration": iteration},
                 )
 
-                # Execute
                 tool_result = await self.registry.execute(tc.name, tc.arguments)
 
-                # Truncate to fit remaining budget
-                remaining_budget = tool_result_budget - estimate_tokens(tool_result)
-                if remaining_budget < 0:
-                    # Need to truncate this result
+                # Truncate to fit budget
+                if estimate_tokens(tool_result) > tool_result_budget:
                     max_chars = tool_result_budget * 4
-                    if len(tool_result) > max_chars:
-                        tool_result = tool_result[:max_chars] + "\n\n... [truncated to fit context budget]"
+                    tool_result = tool_result[:max_chars] + "\n\n... [truncated]"
 
-                # Emit result (UI display, truncated)
-                display = tool_result
-                if len(display) > 1500:
-                    display = display[:1500] + "\n... [truncated]"
+                tool_results.append(f"[Tool: {tc.name}({json.dumps(tc.arguments)})]\n{tool_result}")
+
+                display = tool_result[:1500] + "..." if len(tool_result) > 1500 else tool_result
                 yield AgentEvent(
                     type=EventType.TOOL_RESULT,
                     content=display,
                     data={"tool": tc.name, "iteration": iteration},
                 )
 
-                messages.append(ChatMessage(
-                    role="tool",
-                    content=tool_result,
-                    tool_call_id=_make_tool_call_id(tc.name, iteration),
-                    name=tc.name,
-                ))
-                # Reset accumulated tool call IDs for this iteration
+            # Feed tool results back as a single user message
+            # (avoids vLLM role="tool" validation entirely)
+            feedback = "\n\n".join(tool_results)
+            feedback = f"Tool results:\n\n{feedback}\n\nBased on these results, either call another tool or give your final answer."
+            messages.append(ChatMessage(role="user", content=feedback))
 
         # Max iterations reached
         logger.warning("Agent reached max iterations (%d)", self.config.max_iterations)
         yield AgentEvent(
             type=EventType.TEXT,
-            content=(
-                "Based on my exploration, I've gathered the relevant code context. "
-                "Let me summarize what I found."
-            ),
+            content="Based on my exploration of the code, I've gathered the relevant context. Here is my analysis.",
         )
         yield AgentEvent(type=EventType.DONE)
 
@@ -243,8 +204,6 @@ def _tool_progress(name: str, args: dict) -> str:
         return f"Finding references to: {args.get('name', '?')}"
     elif name == "list_directory":
         return f"Listing {args.get('path', '.')}"
-    elif name == "run_tests":
-        return "Running tests..."
     return f"Executing {name}..."
 
 
