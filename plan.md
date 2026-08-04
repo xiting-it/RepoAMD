@@ -38,7 +38,7 @@ M0 ---------+-----------+----------+------------+-----------+
 |---|---|---|---|---|
 | 0.1 | ROCm 驱动 | rocminfo grep gfx = gfx1100 | 10min | |
 | 0.2 | HIP 工具链 | hipconfig --version | 5min | |
-| 0.3 | 安装 ROCm 版 PyTorch | pip install torch --index-url rocm6.2 | 30min | +1h |
+| 0.3 | 安装 ROCm 版 PyTorch | pip install torch --index-url rocm7.2.1 | 30min | +1h |
 | 0.4 | PyTorch GPU 验证 | torch.cuda.is_available() = True | 5min | |
 | 0.5 | 确认 GPU 型号 | get_device_name = W7900 | 5min | |
 | 0.6 | **锁定 ROCm 版本号** | 记录 6.2.x 具体版本 | 5min | |
@@ -125,7 +125,7 @@ vllm serve Qwen/Qwen2.5-Coder-14B-Instruct \
 > 不能用 0.62: 29.8GB < 30GB (权重+运行时)，vLLM 会 OOM。
 
 > **必须 pin vLLM 版本**: M0 验证通过的版本立即写入 requirements.txt
-> (`vllm==0.6.x`)。ROCm 支持变化快，不 pin 下次 install 可能 break。
+> (`vllm==0.16.0`)。ROCm 支持变化快，不 pin 下次 install 可能 break。
 
 **llama.cpp 路线**:
 
@@ -404,7 +404,7 @@ vllm serve Qwen/Qwen2.5-Coder-14B-Instruct \
 #### README 评委体验清单
 
 ```
-- [ ] 环境 (ROCm 6.2.x + Python 3.11+)
+- [ ] 环境 (ROCm 7.2.1.x + Python 3.10+)
 - [ ] download_models.sh (14B ~28GB)
 - [ ] start_llm.sh (含 tool_call + enforce_eager + ROCm env)
 - [ ] requirements.txt (vllm 版本 pin)

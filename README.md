@@ -8,7 +8,7 @@ about codebases, locate bugs, and explain logic — all without sending a single
 line of code to the cloud.
 
 **Target hardware**: AMD Radeon PRO W7900 (48GB GDDR6, RDNA3 / gfx1100)
-**Compute stack**: ROCm 6.2 + PyTorch + vLLM (or llama.cpp fallback)
+**Compute stack**: ROCm 7.2.1 + PyTorch + vLLM (or llama.cpp fallback)
 **LLM**: Qwen2.5-Coder-14B-Instruct
 
 ---
@@ -32,62 +32,55 @@ GPU Layout:
 
 ## Prerequisites
 
-- AMD GPU: W7900 or similar RDNA3 card (gfx1100)
-- ROCm 6.2+ (`rocminfo` should show gfx1100)
-- Python 3.11+
+**Recommended: use the pre-built Docker image**
+
+The default environment already includes everything GPU-related:
+
+```
+10.5.10.89:1808/xinwei/radeon-cloud/vllm-dev:rocm7.2.1_navi_ubuntu22.04_py3.10_pytorch_2.9_vllm_0.16.0
+```
+
+This image contains: ROCm 7.2.1, Python 3.10, PyTorch 2.9, vLLM 0.16.0.
+You only need to install app-level dependencies (fastapi, chromadb, tree-sitter, etc.).
+
+- Docker image: vllm-dev:rocm7.2.1_navi_ubuntu22.04_py3.10_pytorch_2.9_vllm_0.16.0
+- ROCm 7.2.1+ (`rocminfo` should show gfx1100)
+- Python 3.10+
 - ~32GB disk for models (14B FP16 + embedding + reranker)
 
 ## Installation
 
-### 1. Clone and install dependencies
+### 1. Pull the Docker image and start a container
 
 ```bash
-git clone <your-repo-url> RepoAgent
-cd RepoAgent
+docker pull 10.5.10.89:1808/xinwei/radeon-cloud/vllm-dev:rocm7.2.1_navi_ubuntu22.04_py3.10_pytorch_2.9_vllm_0.16.0
+
+# Run with GPU access + mount your model storage
+docker run -it --network host --device=/dev/kfd --device=/dev/dri \
+  --group-add video --cap-add=SYS_PTRACE \
+  --security-opt seccomp=unconfined \
+  -v /path/to/models:/models \
+  -v /path/to/repos:/work \
+  vllm-dev:rocm7.2.1_navi_ubuntu22.04_py3.10_pytorch_2.9_vllm_0.16.0
+```
+
+The image already has PyTorch 2.9 + vLLM 0.16.0 + ROCm 7.2.1. Do NOT reinstall them.
+
+### 2. Clone and install app dependencies
+
+```bash
+git clone https://github.com/xiting-it/RepoAMD.git
+cd RepoAMD
 pip install -r requirements.txt
 ```
 
-### 2. Install PyTorch (ROCm build)
+This installs only the lightweight app-level packages (fastapi, chromadb,
+tree-sitter, sentence-transformers, etc.). Should take under 2 minutes.
 
-```bash
-pip install torch --index-url https://download.pytorch.org/whl/rocm6.2
-```
-
-### 3. Install vLLM (ROCm)
-
-vLLM does not have a standard PyPI wheel for ROCm. Use the ROCm-specific index:
-
-```bash
-pip install vllm --extra-index-url https://download.pytorch.org/whl/rocm6.2
-```
-
-Or build from source (30min-2h):
-
-```bash
-git clone https://github.com/vllm-project/vllm
-cd vllm
-pip install -e . --rocm-version=6.2
-```
-
-> **Pin the version**: After verifying a working vLLM build, pin it in `requirements.txt`.
-> ROCm support changes frequently — an unversioned install may break on update.
-
-### 4. Verify environment (M0)
+### 3. Verify environment
 
 ```bash
 python scripts/verify_rocm.py
-```
-
-This checks: ROCm driver, HIP toolchain, PyTorch+ROCm, MIOpen attention backend,
-inference stability, and vLLM import. All must pass before proceeding.
-
-### 5. Download models
-
-```bash
-bash download_models.sh
-# Or separately:
-bash download_models.sh --llm-only    # Qwen2.5-Coder-14B (~28GB)
-bash download_models.sh --rag-only    # BGE-m3 + reranker (~3GB)
 ```
 
 ## Usage

@@ -17,7 +17,7 @@ llm:
   enforce_eager: true
   temperature: 0.3
   top_p: 0.9
-  vllm_version: "0.6.x"
+  vllm_version: "0.16.0"
 
 embedding:
   model: "BAAI/bge-m3"

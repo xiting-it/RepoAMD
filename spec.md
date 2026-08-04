@@ -2,7 +2,7 @@
 
 > 版本: 3.2 | 日期: 2026-08-04
 > 目标硬件: AMD Radeon PRO W7900 (48GB GDDR6, RDNA3 / gfx1100)
-> ROCm 目标版本: 6.2 (需在 M0 阶段锁定具体小版本号)
+> ROCm 目标版本: 7.2.1 (需在 M0 阶段锁定具体小版本号)
 > 赛事: AMD Pervasive AI Developer Contest — Track 2
 
 ---
@@ -228,7 +228,7 @@ llm:
   kv_cache_dtype: "fp16"       # 默认 FP16; 应用层验证 FP8 后可切换
   gpu_memory_utilization: 0.88 # 48*0.88≈42GB: 权重28 + KV池12 + 运行时2
   enforce_eager: true          # gfx1100 HIP graph 兼容性差，默认 eager; start_llm.sh 用 ENFORCE_EAGER 环境变量控制
-  vllm_version: "0.6.x"        # M0 验证后 pin 具体版本到 requirements.txt
+  vllm_version: "0.16.0"        # M0 验证后 pin 具体版本到 requirements.txt
 
 embedding:
   model: "BAAI/bge-m3"
@@ -305,18 +305,18 @@ rocm_env:
 
 ### 6.3 推理后端
 
-**主力 vLLM (ROCm 6.2)**:
+**主力 vLLM (ROCm 7.2.1)**:
 
 安装 (ROCm 版没有通用 PyPI wheel):
 
 ```bash
 # 方式一: ROCm 专用 index
-pip install vllm==<M0验证版本> --extra-index-url https://download.pytorch.org/whl/rocm6.2
+pip install vllm==<M0验证版本> --extra-index-url https://download.pytorch.org/whl/rocm7.2.1
 
 # 方式二: 源码编译
 git clone https://github.com/vllm-project/vllm
 cd vllm
-pip install -e . --rocm-version=6.2
+pip install -e . --rocm-version=7.2.1
 ```
 
 > **必须 pin 版本**: vLLM ROCm 支持变化极快，某版修了 gfx1100 下版可能 break。
@@ -460,7 +460,7 @@ GPU 总计:                ~14-15 GB / 48 GB
 
 | 优化项 | 状态 | 验证 |
 |---|---|---|
-| ROCm 6.2 + PyTorch on gfx1100 | 待验证 | M0 |
+| ROCm 7.2.1 + PyTorch on gfx1100 | 待验证 | M0 |
 | MIOpen (ROCm attention backend) on gfx1100 | **待验证** | M0 |
 | vLLM 编译/运行 on gfx1100 | **高风险** | M0 提前 |
 | HIP graph capture on gfx1100 | **高风险** | M0 (加 --enforce-eager 兜底) |
@@ -623,7 +623,7 @@ run_tests 默认禁用，需手动开启。只在信任仓库使用。
 ## 13. 评委运行体验 (README)
 
 ```
-1. 环境: ROCm 6.2.x + Python 3.11+
+1. 环境: ROCm 7.2.1.x + Python 3.10+
 2. ./download_models.sh (14B ~28GB + BGE-m3 ~2.4GB + reranker ~0.6GB)
 3. pip install -r requirements.txt (vllm 版本已 pin)
 4. bash start_llm.sh (含 tool_call flags + enforce_eager + ROCm env)
@@ -636,5 +636,5 @@ run_tests 默认禁用，需手动开启。只在信任仓库使用。
 
 ## 14. 技术栈
 
-Python 3.11 / vLLM (ROCm 6.2, 版本 pin) / llama.cpp (HIP) / ROCm+MIOpen /
+Python 3.10 / vLLM (ROCm 7.2.1, 版本 pin) / llama.cpp (HIP) / ROCm+MIOpen /
 FastAPI / tree-sitter / BGE-m3 (CPU) / bge-reranker (GPU) / ChromaDB / ripgrep
