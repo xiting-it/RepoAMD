@@ -15,26 +15,32 @@ set -euo pipefail
 MODEL_DIR="${MODEL_DIR:-./models}"
 mkdir -p "$MODEL_DIR"
 
-download_llm() {
-    echo "=== Downloading Qwen2.5-Coder-14B-Instruct (~28GB) ==="
-    if command -v huggingface-cli &>/dev/null; then
-        huggingface-cli download Qwen/Qwen2.5-Coder-14B-Instruct \
-            --local-dir "$MODEL_DIR/Qwen2.5-Coder-14B-Instruct"
+# Detect available HF CLI
+download() {
+    local repo=$1
+    local dest=$2
+    if command -v hf &>/dev/null; then
+        hf download "$repo" --local-dir "$dest"
+    elif command -v huggingface-cli &>/dev/null; then
+        huggingface-cli download "$repo" --local-dir "$dest"
     else
-        echo "huggingface-cli not found. Install: pip install huggingface_hub"
+        echo "Neither hf nor huggingface-cli found. Install: pip install huggingface_hub"
         exit 1
     fi
+}
+
+download_llm() {
+    echo "=== Downloading Qwen2.5-Coder-14B-Instruct (~28GB) ==="
+    download Qwen/Qwen2.5-Coder-14B-Instruct "$MODEL_DIR/Qwen2.5-Coder-14B-Instruct"
     echo "LLM downloaded to $MODEL_DIR/Qwen2.5-Coder-14B-Instruct"
 }
 
 download_rag() {
     echo "=== Downloading BGE-m3 embedding model (~2.4GB) ==="
-    huggingface-cli download BAAI/bge-m3 \
-        --local-dir "$MODEL_DIR/bge-m3" || true
+    download BAAI/bge-m3 "$MODEL_DIR/bge-m3"
 
     echo "=== Downloading bge-reranker-v2-m3 (~0.6GB) ==="
-    huggingface-cli download BAAI/bge-reranker-v2-m3 \
-        --local-dir "$MODEL_DIR/bge-reranker-v2-m3" || true
+    download BAAI/bge-reranker-v2-m3 "$MODEL_DIR/bge-reranker-v2-m3"
 
     echo "RAG models downloaded to $MODEL_DIR/"
 }
