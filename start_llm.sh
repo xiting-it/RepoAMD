@@ -32,7 +32,7 @@ fi
 # ── FP8 weight quantization toggle ──
 QUANT="${QUANT:-none}"
 QUANT_FLAG=""
-MAX_LEN=16384
+MAX_LEN=32768
 if [ "$QUANT" = "fp8" ]; then
     QUANT_FLAG="--quantization fp8"
     MAX_LEN=32768

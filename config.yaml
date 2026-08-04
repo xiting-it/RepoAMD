@@ -11,7 +11,7 @@ llm:
   base_url: "http://127.0.0.1:8000/v1"
   api_key: "not-needed"
   dtype: "float16"
-  max_model_len: 16384
+  max_model_len: 32768
   kv_cache_dtype: "fp16"
   gpu_memory_utilization: 0.88
   enforce_eager: true
@@ -39,7 +39,7 @@ index:
 
 agent:
   max_iterations: 8
-  context_budget: 16384
+  context_budget: 32768
   temperature: 0.3
   top_p: 0.9
 
