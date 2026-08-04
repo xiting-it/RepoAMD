@@ -123,11 +123,12 @@ def create_router(state: AppState) -> APIRouter:
 
     @router.post("/index")
     async def trigger_index(request: IndexRequest):
-        """Trigger repository indexing (runs in background)."""
+        """Trigger repository indexing (runs in background thread)."""
         if state.indexer.is_indexing:
             return {"status": "already_indexing", "message": "Indexing already in progress"}
 
-        async def run_index():
+        def run_index_sync():
+            """Synchronous indexing — must run in a thread to avoid blocking the event loop."""
             try:
                 state.config.repo_root = request.repo_path
                 state.repo_path = request.repo_path
@@ -136,7 +137,8 @@ def create_router(state: AppState) -> APIRouter:
             except Exception as e:
                 logger.error("Indexing failed: %s", e, exc_info=True)
 
-        asyncio.create_task(run_index())
+        # Run in a thread pool so the blocking indexing doesn't freeze the event loop
+        asyncio.get_event_loop().run_in_executor(None, run_index_sync)
 
         return {"status": "started", "repo_path": request.repo_path}
 
