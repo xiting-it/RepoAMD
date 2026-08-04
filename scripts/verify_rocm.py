@@ -114,36 +114,42 @@ def check_pytorch() -> tuple[bool, str, str]:
 
 
 def check_miopen() -> bool:
-    """Run a small attention-like operation to verify MIOpen works on gfx1100."""
-    check("MIOpen (ROCm attention backend)")
+    """Verify the ROCm attention backend works on gfx1100.
+
+    vLLM on ROCm uses either MIOpen or AOTriton for attention kernels.
+    We test scaled_dot_product_attention forward pass only (no backward
+    needed for kernel availability check).
+    """
+    check("Attention Backend (MIOpen / AOTriton)")
     try:
         import torch
         import torch.nn.functional as F
+
         # Small scaled dot-product attention
         batch, heads, seq, dim = 1, 4, 128, 64
         q = torch.randn(batch, heads, seq, dim, device="cuda")
         k = torch.randn(batch, heads, seq, dim, device="cuda")
         v = torch.randn(batch, heads, seq, dim, device="cuda")
 
-        out = F.scaled_dot_product_attention(q, k, v)
-        loss = out.sum()
-        loss.backward()
+        # Forward only — enough to verify the attention kernel works
+        with torch.no_grad():
+            out = F.scaled_dot_product_attention(q, k, v)
 
         # Check for NaN/Inf
         if torch.isnan(out).any() or torch.isinf(out).any():
             record(CheckResult("miopen", False,
                   "Attention output contains NaN/Inf",
-                  "MIOpen attention kernel may be broken on gfx1100"))
+                  "Attention kernel may be broken on gfx1100"))
             return False
 
         record(CheckResult("miopen", True,
-              "SDPA forward+backward on GPU produces valid output",
-              "MIOpen attention backend functional"))
+              "SDPA forward on GPU produces valid output",
+              "Attention backend functional (AOTriton/MIOpen)"))
         return True
 
     except Exception as e:
         record(CheckResult("miopen", False,
-              f"MIOpen attention test failed: {e}",
+              f"Attention backend test failed: {e}",
               "vLLM ROCm attention may not work. Consider llama.cpp fallback."))
         return False
 
