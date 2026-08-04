@@ -123,6 +123,7 @@ class AgentEngine:
 
             valid_calls = [tc for tc in result.calls if tc.name in tool_names]
 
+            logger.info("Parsed %d tool calls from %d chars of text", len(result.calls), len(full_text))
             if not valid_calls:
                 # No tool calls — this is the final answer
                 final_text = full_text.strip()
