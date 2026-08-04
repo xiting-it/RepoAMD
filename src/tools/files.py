@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -19,22 +18,20 @@ def register_file_tools(
     """Register read_file and list_directory tools."""
 
     def _resolve_path(path: str) -> Path:
-        """Resolve a path relative to repo root, preventing directory traversal."""
         root = config.repo_root
         target = (root / path).resolve()
-        # Ensure the resolved path is within the repo root
         if not str(target).startswith(str(root)):
             raise ValueError(f"Path '{path}' is outside the repository root")
         return target
 
-    async def read_file(path: str, start_line: int = 1, end_line: int = 0) -> str:
-        """Read the contents of a file in the repository.
+    async def read_file(**kwargs) -> str:
+        """Read a file in the repository."""
+        path = kwargs.get("path") or kwargs.get("file_path") or kwargs.get("filepath") or ""
+        start_line = kwargs.get("start_line", kwargs.get("line", 1))
+        end_line = kwargs.get("end_line", 0)
+        if not path:
+            return "Error: 'path' parameter is required"
 
-        Args:
-            path: File path relative to the repository root.
-            start_line: First line to read (1-indexed, default 1).
-            end_line: Last line to read (0 = read to end).
-        """
         try:
             target = _resolve_path(path)
         except ValueError as e:
@@ -51,15 +48,11 @@ def register_file_tools(
             return f"Error reading file: {e}"
 
         lines = text.split("\n")
-        start = max(1, start_line)
-        end = len(lines) if end_line <= 0 else min(end_line, len(lines))
+        start = max(1, int(start_line))
+        end = len(lines) if int(end_line) <= 0 else min(int(end_line), len(lines))
 
         selected = lines[start - 1:end]
-        # Add line numbers
-        numbered = []
-        for i, line in enumerate(selected, start):
-            numbered.append(f"{i:4d} | {line}")
-
+        numbered = [f"{i:4d} | {line}" for i, line in enumerate(selected, start)]
         result = "\n".join(numbered)
         if len(result) > 8000:
             result = result[:8000] + "\n... [truncated]"
@@ -95,12 +88,9 @@ def register_file_tools(
         handler=read_file,
     )
 
-    async def list_directory(path: str = ".") -> str:
-        """List files and directories in the given path.
-
-        Args:
-            path: Directory path relative to the repository root (default '.').
-        """
+    async def list_directory(**kwargs) -> str:
+        """List files and directories in the given path."""
+        path = kwargs.get("path") or kwargs.get("dir") or kwargs.get("directory") or "."
         try:
             target = _resolve_path(path)
         except ValueError as e:
@@ -122,10 +112,7 @@ def register_file_tools(
                 lines.append(f"  {entry.name}/")
             else:
                 size = entry.stat().st_size
-                if size > 1024:
-                    size_str = f"{size // 1024}K"
-                else:
-                    size_str = f"{size}B"
+                size_str = f"{size // 1024}K" if size > 1024 else f"{size}B"
                 lines.append(f"  {entry.name} ({size_str})")
 
         return f"Contents of {path}:\n" + "\n".join(lines)

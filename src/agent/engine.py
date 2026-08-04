@@ -178,6 +178,21 @@ class AgentEngine:
             feedback = f"Tool results:\n\n{feedback}\n\nBased on these results, either call another tool or give your final answer."
             messages.append(ChatMessage(role="user", content=feedback))
 
+            # Trim conversation if approaching context limit
+            total_tokens = sum(estimate_tokens(m.content) + 4 for m in messages)
+            max_tokens = self.config.context_budget.get("tool_results", 9000) + \
+                self.config.context_budget.get("conversation", 2000) + \
+                self.config.context_budget.get("system_prompt", 1200) + \
+                self.config.context_budget.get("repo_structure", 800)
+            if total_tokens > max_tokens:
+                logger.info("Context %d tokens > %d limit, trimming old messages", total_tokens, max_tokens)
+                # Keep system prompt (index 0) and last 4 messages
+                while len(messages) > 5 and estimate_tokens(
+                    "\n".join(m.content for m in messages[1:-4])
+                ) > max_tokens // 2:
+                    messages.pop(1)  # Remove oldest non-system message
+                logger.info("Trimmed to %d messages", len(messages))
+
         # Max iterations reached
         logger.warning("Agent reached max iterations (%d)", self.config.max_iterations)
         yield AgentEvent(

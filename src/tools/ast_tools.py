@@ -18,12 +18,12 @@ def register_ast_tools(
 ) -> None:
     """Register get_symbols and find_references tools."""
 
-    async def get_symbols(path: str) -> str:
-        """Extract the list of functions, classes, and methods from a Python file.
+    async def get_symbols(**kwargs) -> str:
+        """Extract functions, classes, and methods from a Python file."""
+        path = kwargs.get("path") or kwargs.get("file_path") or kwargs.get("filepath") or ""
+        if not path:
+            return "Error: 'path' parameter is required"
 
-        Args:
-            path: File path relative to the repository root.
-        """
         root = config.repo_root
         target = (root / path).resolve()
         if not str(target).startswith(str(root)):
@@ -43,7 +43,6 @@ def register_ast_tools(
                 f"  L{sym.start_line:4d}-{sym.end_line:<4d}  "
                 f"{sym.kind:8s}  {sym.name}{param_str}"
             )
-
         return "\n".join(lines)
 
     registry.register(
@@ -66,19 +65,16 @@ def register_ast_tools(
         handler=get_symbols,
     )
 
-    async def find_references(name: str) -> str:
-        """Find all references to a symbol (function, class, variable) in the codebase.
+    async def find_references(**kwargs) -> str:
+        """Find all references to a symbol."""
+        name = kwargs.get("name") or kwargs.get("symbol") or kwargs.get("query") or ""
+        if not name:
+            return "Error: 'name' parameter is required"
 
-        Uses heuristic string matching, not a precise call graph.
-
-        Args:
-            name: The symbol name to search for.
-        """
         refs = indexer.symbol_table.find_references(name)
         if not refs:
             return f"No references found for '{name}'."
 
-        # Separate definitions from references
         definitions = [r for r in refs if r.get("type") == "definition"]
         references = [r for r in refs if r.get("type") == "reference"]
 
