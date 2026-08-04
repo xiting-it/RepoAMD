@@ -7,7 +7,7 @@ server:
 
 llm:
   backend: "vllm"
-  model: "Qwen/Qwen2.5-Coder-14B-Instruct"
+  model: "./models/Qwen2.5-Coder-14B-Instruct"
   base_url: "http://127.0.0.1:8000/v1"
   api_key: "not-needed"
   dtype: "float16"
@@ -20,12 +20,12 @@ llm:
   vllm_version: "0.16.0"
 
 embedding:
-  model: "BAAI/bge-m3"
+  model: "./models/bge-m3"
   device: "cpu"
   batch_size: 16
 
 reranker:
-  model: "BAAI/bge-reranker-v2-m3"
+  model: "./models/bge-reranker-v2-m3"
   device: "cuda"
   candidate_count: 20
   final_count: 15
