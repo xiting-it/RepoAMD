@@ -306,6 +306,8 @@ body {
 
 /* ── Code blocks ── */
 .msg-content pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
     background: var(--bg);
     border-radius: var(--radius);
     padding: 12px;
@@ -313,7 +315,12 @@ body {
     margin: 8px 0;
 }
 
-.msg-content code {
+.msg-content code:not(pre code) {
+    word-break: break-all;
+}
+
+.msg-content pre code {
+    white-space: pre-wrap;
     font-family: var(--font-mono);
     font-size: 13px;
 }
