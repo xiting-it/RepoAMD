@@ -31,7 +31,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%H:%M:%S",
 )
-logger = logging.getLogger(.raa")
+logger = logging.getLogger("raa")
 
 
 def create_app(config_path: str = "config.yaml", repo_path: str = ".") -> FastAPI:
