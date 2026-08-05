@@ -1,4 +1,4 @@
-"""Configuration loader for RepoAgent.
+"""Configuration loader for RepositoryAnalysisAgent.
 
 Loads config.yaml and provides typed access to all settings.
 Handles model path resolution and ROCm environment setup.
@@ -54,11 +54,11 @@ class RerankerConfig:
 @dataclass
 class IndexConfig:
     vector_store: str = "chromadb"
-    persist_dir: str = ".repoagent/index"
+    persist_dir: str = ".raa/index"
     supported_extensions: list[str] = field(default_factory=lambda: [".py"])
     exclude_dirs: list[str] = field(
         default_factory=lambda: [
-            ".git", "node_modules", "__pycache__", ".venv", "dist", "build", ".repoagent"
+            ".git", "node_modules", "__pycache__", ".venv", "dist", "build", ".raa"
         ]
     )
     sensitive_patterns: list[str] = field(
@@ -77,7 +77,7 @@ class AgentConfig:
 @dataclass
 class SessionConfig:
     persist: bool = True
-    persist_dir: str = ".repoagent/sessions"
+    persist_dir: str = ".raa/sessions"
     max_recent: int = 10
 
 

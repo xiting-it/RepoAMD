@@ -1,4 +1,4 @@
-# RepoAgent Docker Image
+# RepositoryAnalysisAgent Docker Image
 # Base: vllm-dev (PyTorch 2.9 + vLLM 0.16.0 + ROCm 7.2.1)
 FROM 10.5.10.89:1808/xinwei/radeon-cloud/vllm-dev:rocm7.2.1_navi_ubuntu22.04_py3.10_pytorch_2.9_vllm_0.16.0
 
@@ -26,7 +26,7 @@ COPY . .
 ENV MODEL_DIR=/models
 ENV REPO_PATH=/workspace
 
-# Expose ports: vLLM (8000) + RepoAgent (8080)
+# Expose ports: vLLM (8000) + RepositoryAnalysisAgent (8080)
 EXPOSE 8000 8080
 
 # Entrypoint

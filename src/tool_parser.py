@@ -1,4 +1,4 @@
-"""Tool call parsing for RepoAgent Agent engine.
+"""Tool call parsing for RepositoryAnalysisAgent Agent engine.
 
 Supports multiple formats:
 1. Structured: vLLM returns ``tool_calls`` array in OpenAI-compatible JSON.

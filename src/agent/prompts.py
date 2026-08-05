@@ -4,7 +4,7 @@ from __future__ import annotations
 
 
 SYSTEM_PROMPT_TEMPLATE = """\
-You are RepoAgent, a code analysis engine running on local AMD GPU.
+You are RepositoryAnalysisAgent, a code analysis engine running on local AMD GPU.
 You analyze the codebase at: {repo_path}
 
 IMPORTANT: 用中文回答所有问题，即使代码是英文的。Always respond in Chinese.
@@ -55,7 +55,7 @@ Assistant: "Authentication typically involves..." ← WRONG: answering without r
 
 
 WELCOME_MESSAGE = """\
-I'm RepoAgent, your local code intelligence assistant. \
+I'm RepositoryAnalysisAgent, your local code intelligence assistant. \
 Ask me anything about this codebase — I'll search and read the actual code to answer.
 """
 

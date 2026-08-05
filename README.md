@@ -1,8 +1,8 @@
-# RepoAgent
+# RepositoryAnalysisAgent
 
 Privacy-first local code repository intelligence agent for AMD Radeon GPU.
 
-RepoAgent runs entirely on your local hardware. It uses AST-aware code indexing,
+RepositoryAnalysisAgent runs entirely on your local hardware. It uses AST-aware code indexing,
 semantic retrieval with reranking, and a ReAct agent loop to answer questions
 about codebases, locate bugs, and explain logic — all without sending a single
 line of code to the cloud.
@@ -100,7 +100,7 @@ QUANT=fp8 bash start_llm.sh
 
 Wait for "Application startup complete" (cold start: ~2-4 minutes for 14B FP16).
 
-### 2. Start the RepoAgent application
+### 2. Start the RepositoryAnalysisAgent application
 
 ```bash
 # Analyze a repository:
@@ -154,7 +154,7 @@ All settings are in `config.yaml`. Key options:
 
 ## AMD W7900 Optimization
 
-RepoAgent is designed specifically for RDNA3 / gfx1100:
+RepositoryAnalysisAgent is designed specifically for RDNA3 / gfx1100:
 
 - **GDDR6 bandwidth ceiling**: 864 GB/s ÷ 28GB (14B FP16) ≈ 31 tok/s theoretical max.
   Realistic expectation: 15-25 tok/s.
@@ -187,7 +187,7 @@ Target: >70% of questions scored ≥2/3 by LLM judge.
 ## Project Structure
 
 ```
-RepoAgent/
+RepositoryAnalysisAgent/
 ├── config.yaml                 # All configuration
 ├── start_llm.sh                # vLLM server launcher (ROCm env + tool flags)
 ├── download_models.sh          # Model downloader

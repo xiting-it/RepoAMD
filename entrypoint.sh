@@ -2,7 +2,7 @@
 set -e
 
 echo "=========================================="
-echo "  RepoAgent Docker Container"
+echo "  RepositoryAnalysisAgent Docker Container"
 echo "=========================================="
 
 # Belt and suspenders: ensure flash-attn is gone
@@ -16,7 +16,7 @@ echo "[entrypoint] Repo:  $REPO_PATH"
 # ── Mode selection ──
 case "${1:-all}" in
 
-  # Start both vLLM + RepoAgent
+  # Start both vLLM + RepositoryAnalysisAgent
   all)
     echo ""
     echo "[entrypoint] Starting vLLM in background..."
@@ -51,10 +51,10 @@ case "${1:-all}" in
     fi
 
     echo ""
-    echo "[entrypoint] Starting RepoAgent..."
+    echo "[entrypoint] Starting RepositoryAnalysisAgent..."
     echo ""
 
-    # Start RepoAgent in foreground
+    # Start RepositoryAnalysisAgent in foreground
     cd /app
     exec python -m src.server "${REPO_PATH}" --host 0.0.0.0
     ;;
@@ -71,7 +71,7 @@ case "${1:-all}" in
       --port 8000
     ;;
 
-  # Only RepoAgent (vLLM must be running separately)
+  # Only RepositoryAnalysisAgent (vLLM must be running separately)
   app)
     cd /app
     exec python -m src.server "${REPO_PATH}" --host 0.0.0.0
@@ -84,9 +84,9 @@ case "${1:-all}" in
 
   *)
     echo "Usage: docker run ... [all|vllm|app|shell]"
-    echo "  all   (default) Start vLLM + RepoAgent together"
+    echo "  all   (default) Start vLLM + RepositoryAnalysisAgent together"
     echo "  vllm  Start only vLLM"
-    echo "  app   Start only RepoAgent"
+    echo "  app   Start only RepositoryAnalysisAgent"
     echo "  shell Drop into bash"
     exit 1
     ;;

@@ -1,4 +1,4 @@
-"""FastAPI routes for RepoAgent.
+"""FastAPI routes for RepositoryAnalysisAgent.
 
 All endpoints are prefixed with /api. The chat endpoint uses SSE streaming.
 """

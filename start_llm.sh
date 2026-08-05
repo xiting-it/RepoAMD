@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start the vLLM inference server for RepoAgent on AMD W7900 (gfx1100).
+# Start the vLLM inference server for RepositoryAnalysisAgent on AMD W7900 (gfx1100).
 #
 # Environment variables:
 #   ENFORCE_EAGER   "true" (default) | "false" — set false after M0 verifies graph mode

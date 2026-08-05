@@ -1,3 +1,3 @@
-"""RepoAgent: Privacy-first local code repository intelligence agent."""
+"""RepositoryAnalysisAgent: Privacy-first local code repository intelligence agent."""
 
 __version__ = "0.1.0"

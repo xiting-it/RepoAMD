@@ -2,7 +2,7 @@
 set -euo pipefail
 
 echo "=========================================="
-echo "  RepoAgent Setup"
+echo "  RepositoryAnalysisAgent Setup"
 echo "=========================================="
 
 # 1. 激活 venv
@@ -36,7 +36,7 @@ echo "    source /opt/venv/bin/activate"
 echo "    cd /workspace/RepoAMD"
 echo "    MODEL_PATH=./models/Qwen2.5-Coder-14B-Instruct bash start_llm.sh"
 echo ""
-echo "  Terminal 2 - RepoAgent (after vLLM ready):"
+echo "  Terminal 2 - RepositoryAnalysisAgent (after vLLM ready):"
 echo "    source /opt/venv/bin/activate"
 echo "    cd /workspace/RepoAMD"
 echo "    python -m src.server /workspace/RepoAMD"

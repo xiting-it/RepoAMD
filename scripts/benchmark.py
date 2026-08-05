@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M5: AMD W7900 benchmark suite for RepoAgent.
+"""M5: AMD W7900 benchmark suite for RepositoryAnalysisAgent.
 
 Measures inference performance across multiple dimensions:
 - Backend comparison (vLLM FP16 vs llama.cpp Q8_0 vs Q4_K_M)
@@ -202,7 +202,7 @@ async def bench_context_length(client: BenchClient) -> list[BenchResult]:
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="RepoAgent AMD benchmark suite")
+    parser = argparse.ArgumentParser(description="RepositoryAnalysisAgent AMD benchmark suite")
     parser.add_argument("--base-url", default="http://127.0.0.1:8000/v1",
                         help="LLM server base URL")
     parser.add_argument("--model", default="./models/Qwen2.5-Coder-14B-Instruct")
@@ -215,7 +215,7 @@ async def main():
 
     print(f"""
 +------------------------------------------------------------------+
-|              RepoAgent AMD W7900 Benchmark Suite                 |
+|              RepositoryAnalysisAgent AMD W7900 Benchmark Suite                 |
 |              GPU: W7900 (gfx1100, RDNA3, 48GB GDDR6)            |
 +------------------------------------------------------------------+
 |  Theoretical throughput ceiling:                                  |

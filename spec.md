@@ -1,4 +1,4 @@
-# RepoAgent — 产品与工程规格书
+# RepositoryAnalysisAgent — 产品与工程规格书
 
 > 版本: 3.2 | 日期: 2026-08-04
 > 目标硬件: AMD Radeon PRO W7900 (48GB GDDR6, RDNA3 / gfx1100)
@@ -11,7 +11,7 @@
 
 ### 1.1 产品定义
 
-RepoAgent 是一款**隐私优先的本地代码库智能助手**。它在用户本地硬件上运行，
+RepositoryAnalysisAgent 是一款**隐私优先的本地代码库智能助手**。它在用户本地硬件上运行，
 通过 AST 感知的代码索引和检索增强生成 (RAG) 技术，让大语言模型理解整个代码仓库，
 从而回答代码问题、定位 Bug、解释逻辑——全程代码不离开本机。
 
@@ -33,13 +33,13 @@ RepoAgent 是一款**隐私优先的本地代码库智能助手**。它在用户
 
 ### 1.4 竞品分析
 
-| 竞品 | 定位 | 与 RepoAgent 的区别 |
+| 竞品 | 定位 | 与 RepositoryAnalysisAgent 的区别 |
 |---|---|---|
 | GitHub Copilot / Cursor | 云端编辑器 Agent | 代码上云 |
 | Continue.dev | 开源，可接本地模型 | 有 @codebase 索引，但 Agent 自主性和 AMD GPU 优化不如本方案 |
 | Tabby | 本地代码补全服务 | 聚焦补全 (FIM) |
 | Aider | 终端 AI pair programmer | 有 tree-sitter repo map，但无向量检索、无多步 Agent |
-| **RepoAgent** | **本地 + 仓库级 Agent** | **AST 检索 + reranking + ReAct + AMD GPU 优化** |
+| **RepositoryAnalysisAgent** | **本地 + 仓库级 Agent** | **AST 检索 + reranking + ReAct + AMD GPU 优化** |
 
 ---
 
@@ -243,9 +243,9 @@ reranker:
 
 index:
   vector_store: "chromadb"
-  persist_dir: ".repoagent/index"
+  persist_dir: ".raa/index"
   supported_extensions: [".py"]
-  exclude_dirs: [".git", "node_modules", "__pycache__", ".venv", "dist", "build", ".repoagent"]
+  exclude_dirs: [".git", "node_modules", "__pycache__", ".venv", "dist", "build", ".raa"]
 
 agent:
   max_iterations: 8
@@ -255,7 +255,7 @@ agent:
 
 session:
   persist: true
-  persist_dir: ".repoagent/sessions"
+  persist_dir: ".raa/sessions"
 
 security:
   run_tests_enabled: false
@@ -574,7 +574,7 @@ W7900 受 GDDR6 带宽和 RDNA3 kernel 折损双重限制，~20 tok/s 是合理�
 
 ## 8. 会话与状态管理
 
-JSON 持久化到 `.repoagent/sessions/`。重启恢复最近 10 个会话。
+JSON 持久化到 `.raa/sessions/`。重启恢复最近 10 个会话。
 
 ---
 

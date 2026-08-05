@@ -63,7 +63,7 @@ def build_repo_tree(repo_path: str | Path, max_depth: int = 2, max_lines: int = 
             return
 
         exclude = {".git", "node_modules", "__pycache__", ".venv", "dist", "build",
-                    ".repoagent", "models"}
+                    ".raa", "models"}
         for entry in entries:
             if entry.name in exclude or entry.name.startswith("."):
                 continue

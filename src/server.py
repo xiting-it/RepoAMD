@@ -1,4 +1,4 @@
-"""RepoAgent server: FastAPI application entry point.
+"""RepositoryAnalysisAgent server: FastAPI application entry point.
 
 Wires together config, backend, indexer, reranker, tools, and routes.
 Serves the web UI from static/ and the API from /api.
@@ -31,7 +31,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%H:%M:%S",
 )
-logger = logging.getLogger("repoagent")
+logger = logging.getLogger(.raa")
 
 
 def create_app(config_path: str = "config.yaml", repo_path: str = ".") -> FastAPI:
@@ -40,13 +40,13 @@ def create_app(config_path: str = "config.yaml", repo_path: str = ".") -> FastAP
     config.repo_root = repo_path
 
     app = FastAPI(
-        title="RepoAgent",
+        title="RepositoryAnalysisAgent",
         description="Privacy-first local code repository intelligence agent",
         version="0.1.0",
     )
 
     # ── Core components ──
-    logger.info("Initializing RepoAgent (backend=%s, model=%s)",
+    logger.info("Initializing RepositoryAnalysisAgent (backend=%s, model=%s)",
                 config.llm.backend, config.llm.model)
 
     backend = create_backend(config.llm)
@@ -98,9 +98,9 @@ def create_app(config_path: str = "config.yaml", repo_path: str = ".") -> FastAP
     )
 
     # Store state in app for access from CLI
-    app.state.repoagent = state
+    app.state.raa = state
 
-    logger.info("RepoAgent ready at http://%s:%d", config.server.host, config.server.port)
+    logger.info("RepositoryAnalysisAgent ready at http://%s:%d", config.server.host, config.server.port)
     return app
 
 
@@ -108,7 +108,7 @@ def main():
     """CLI entry point: python -m src.server [repo_path] [--config path] [--port N]"""
     import argparse
 
-    parser = argparse.ArgumentParser(description="RepoAgent server")
+    parser = argparse.ArgumentParser(description="RepositoryAnalysisAgent server")
     parser.add_argument("repo_path", nargs="?", default=".",
                         help="Path to the repository to analyze")
     parser.add_argument("--config", default="config.yaml", help="Config file path")

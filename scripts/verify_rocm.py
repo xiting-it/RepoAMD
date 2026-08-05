@@ -228,14 +228,14 @@ def check_rocm_env() -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Verify ROCm environment for RepoAgent")
+    parser = argparse.ArgumentParser(description="Verify ROCm environment for RepositoryAnalysisAgent")
     parser.add_argument("--model", default="Qwen/Qwen2.5-Coder-14B-Instruct",
                         help="Model name for vLLM check")
     args = parser.parse_args()
 
     print("""
 +------------------------------------------------------------------+
-|              RepoAgent M0 Environment Verification               |
+|              RepositoryAnalysisAgent M0 Environment Verification               |
 |              Target: AMD W7900 (gfx1100, ROCm 7.2.1)              |
 +------------------------------------------------------------------+
 """)

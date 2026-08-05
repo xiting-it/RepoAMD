@@ -1,12 +1,12 @@
 version: "3.8"
 
 services:
-  repoagent:
+ .raa:
     build:
       context: .
       dockerfile: Dockerfile
-    image: repoagent:latest
-    container_name: repoagent
+    image:.raa:latest
+    container_name:.raa
     network_mode: host
     devices:
       - /dev/kfd
@@ -24,7 +24,7 @@ services:
       # Mount workspace (repos to analyze)
       - /path/to/workspace:/workspace
       # Persist index + sessions
-      - ./.repoagent:/app/.repoagent
+      - ./.raa:/app/.raa
     environment:
       - MODEL_DIR=/models
       - REPO_PATH=/workspace/RepoAMD

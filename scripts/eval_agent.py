@@ -144,9 +144,9 @@ Respond with ONLY a JSON object: {{"score": N, "reasoning": "brief explanation"}
 
 
 async def main():
-    parser = argparse.ArgumentParser(description="RepoAgent evaluation suite")
+    parser = argparse.ArgumentParser(description="RepositoryAnalysisAgent evaluation suite")
     parser.add_argument("--app-url", default="http://127.0.0.1:8080",
-                        help="RepoAgent app URL")
+                        help="RepositoryAnalysisAgent app URL")
     parser.add_argument("--judge-url", default="http://127.0.0.1:8000",
                         help="LLM server URL for judging")
     parser.add_argument("--test-cases", default="eval/test_cases.json")

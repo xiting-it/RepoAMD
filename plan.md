@@ -1,4 +1,4 @@
-# RepoAgent — 实施计划书
+# RepositoryAnalysisAgent — 实施计划书
 
 > 版本: 3.2 | 日期: 2026-08-04
 > 关联文档: spec.md v3.2

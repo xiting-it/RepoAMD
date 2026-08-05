@@ -1,4 +1,4 @@
-"""LLM backend abstraction for RepoAgent.
+"""LLM backend abstraction for RepositoryAnalysisAgent.
 
 Communicates with the inference server (vLLM or llama.cpp) via its
 OpenAI-compatible HTTP endpoint. No GPU access needed in this module —

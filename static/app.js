@@ -1,4 +1,4 @@
-// RepoAgent frontend: chat interface with SSE streaming, tool call visualization,
+// RepositoryAnalysisAgent frontend: chat interface with SSE streaming, tool call visualization,
 // repo path switching, indexing, and stop generation.
 
 const API = '/api';
@@ -150,7 +150,7 @@ async function streamChat(message) {
     msgDiv.className = 'msg msg-assistant';
     const roleEl = document.createElement('div');
     roleEl.className = 'msg-role';
-    roleEl.textContent = 'RepoAgent';
+    roleEl.textContent = 'RepositoryAnalysisAgent';
     const contentEl = document.createElement('div');
     contentEl.className = 'msg-content';
     msgDiv.appendChild(roleEl);
@@ -373,7 +373,7 @@ function appendUserMessage(text) {
 function renderWelcome() {
     return `<div class="welcome">
         <div class="welcome-icon">&#128269;</div>
-        <h2>RepoAgent</h2>
+        <h2>RepositoryAnalysisAgent</h2>
         <p>Privacy-first local code intelligence. Ask anything about this codebase.</p>
     </div>`;
 }
@@ -510,7 +510,7 @@ async function loadSession(sessionId) {
                 div.className = 'msg msg-assistant';
                 const role = document.createElement('div');
                 role.className = 'msg-role';
-                role.textContent = 'RepoAgent';
+                role.textContent = 'RepositoryAnalysisAgent';
                 const content = document.createElement('div');
                 content.className = 'msg-content';
                 content.innerHTML = renderMarkdown(msg.content);
