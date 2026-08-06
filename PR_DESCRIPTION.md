@@ -152,4 +152,4 @@ python -m src.server /path/to/repo
 
 ## Demo Video
 
-<!-- Add video link here after recording -->
+[https://pan.xitingit.top/hackathonVideo.mp4](https://pan.xitingit.top/hackathonVideo.mp4)
